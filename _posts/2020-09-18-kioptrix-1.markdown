@@ -1,0 +1,30 @@
+---
+layout: post
+title: "Kioptrix 1"
+date: 2020-09-18 12:54:54 -0600
+categories: Kioptrix#1 VulnHub
+---
+
+Kioptrix 1 is a beginner level box from VulnHulb, it was created in 2010 so there are probably quite a few more vulnerabilities there now than was originally intended. You can download the image from [here](https://www.vulnhub.com/entry/kioptrix-level-1-1,22/). Once you have the image downloaded we can run our enumeration against the box.
+
+## Enumeration
+
+I am a huge fan of AutoRecon and use it as my initial scan against all the machines I am testing. It starts with an nmap scan and then performs other scans such as Nikto automatically depending on what it finds in the nmap scan. The one downside to it is that it can take a while to run, so go grab a coffee while it's running.
+
+## Findings
+
+The initial nmap scan shows a couple of interesting ports open including 80 and 443, so we can view the Nikto scans that were run automatically based on AutoRecon finding these ports open. We can see in these findings that the machine is vulnerable to a couple of different potential issues but there is a CVE of interest in our findings.
+
+![cve.png](/assets/images/980c5cec7fed4a24a14cbaf66fe1ea3a.png)
+
+CVE-2002-0082 is a buffer overflow in mod_ssl V2.8.7 and lower that could allow an attack to gain a remote shell. If we google quickly for this CVE we can see a repo for an exploit for this vulnerability [here](https://github.com/exploit-inters/OpenFuck). We can pull this repo and take a look at the code locally.
+
+The readme shows that we need to have libssl-dev installed, I had previously installed this but it can be installed on Kali with `sudo apt install libssl-dev`. Once that is installed we can compile the exploit with `gcc -o OpenFuck OpenFuck.c -lcrypto`. When we run the command we are given a list of OS/Apaches combos, we can grep for our version of Apache(1.3.20)
+
+![version.png](/assets/images//40676f896fc9480c8d2d0920d6b86198.png)
+
+Here we can see two potential options(0x6a and 0x6b), easiest thing to do in this case is just to test both. In our case 0x6b appears to be the correct options and we can run our command with this and our target ip and port and see what happens.
+
+![root.png](/assets/images/078fb43aae374712a9922540c7a7fff8.png)
+
+We can see from the screenshot above we get a root shell back and that's our first box done. This is a fairly easy box but does teach us some good enumeration practices.
