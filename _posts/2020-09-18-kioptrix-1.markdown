@@ -3,7 +3,7 @@ layout: post
 title: "Kioptrix 1"
 date: 2020-09-18 12:54:54 -0600
 categories: VulnHub OSCP
-tags: VulnHub
+tags: VulnHub Kioptrix OpenFuck CVE-2002-082
 ---
 
 Kioptrix 1 is a beginner level box from VulnHulb, it was created in 2010 so there are probably quite a few more vulnerabilities there now than was originally intended. You can download the image from [here](https://www.vulnhub.com/entry/kioptrix-level-1-1,22/). Once you have the image downloaded we can run our enumeration against the box.

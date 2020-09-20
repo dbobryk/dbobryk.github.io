@@ -3,7 +3,7 @@ layout: post
 title: "Kioptrix 2"
 date: 2020-09-18 14:23:00 -0600
 categories: VulnHub OSCP
-tags: VulnHub
+tags: VulnHub Kioptrix sqli
 ---
 
 Same as Kioptrix 1, this is an entry level box from VulnHub, you can download it from [here](https://www.vulnhub.com/entry/kioptrix-level-11-2,23/#download).

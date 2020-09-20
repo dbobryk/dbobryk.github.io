@@ -1,0 +1,34 @@
+---
+layout: post
+title: "Kioptrix 3"
+date: 2020-09-20 12:30:00 -0600
+categories: VulnHub OSCP
+tags: VulnHub Kioptrix gallarific sqli
+---
+
+Same as Kioptrix 1 and 2, this is an entry level box from VulnHub, you can download it from [here](https://www.vulnhub.com/entry/kioptrix-level-12-3,24/).
+
+## First Step
+
+For this box we need to add the domain to our hosts file on the attacking machine. We can do this by running `echo <ip> kioptrix3.com >> /etc/hosts`
+
+## Enumeration
+
+Running our standard autorecon script doesn't reveal much for open ports on this machine, we are looking SSH and a web-server. Generally SSH isn't going to be vulnerable so we can just skip over it for now. The GoBuster scan that runs by default with AutoRecon did find a couple of interesting things, namely gallery and phpmyadmin. We can see that gallery browsing to kioptrix3.com/gallery/ opens up an app called gallarific.
+
+## SCREENSHOT
+
+Running SearchSploit against gallarific shows an sql injection is available, we can use this to attempt to grab users from our database. The default SQL Injection provided in the exploit didn't work for due to a mismatch in the number of columns. So I had to modify it to the following:
+`kioptrix3.com/gallery/gallery.php?id=null+and+1=2+union+select+1,group_concat(userid,0x3a,username,0x3a,password),3,4,5,6+from+gallarific_users`. This returns the first user in the database which is the admin.
+
+## SCREENSHOT
+
+The exploit from searchsploit also refers to an admin page that doesn't appear to exist on our install and the username and password combo we found doesn't work on phpmyadmin. Back to the database to see if we can find anything else. Long story short, I am going to write a script to automate some of this, but I just ended using SQLMap to dump the database by running `sqlamp --wizard` an following the prompts. This uncovered a dev_accounts table with a couple of user accounts in there. Since these are developer accounts I figure they might have permission to SSH onto the server, so let's give it a shot.
+
+## SCREENSHOT
+
+## Elevate
+
+Looks like we can SSH in using these credentials, taking a look at the loneferret account first and doing some basic enumeration we can see if this user can run anything as root. Easy money, the user can sudo the su command so we can just `sudo su -` here and get a root shell.
+
+(There are no screenshots here because I modified the sudoers file earlier and didn't feel like resetting the box :D )
