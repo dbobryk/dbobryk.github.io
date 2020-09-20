@@ -3,28 +3,38 @@ layout: post
 title: "Kioptrix 4"
 date: 2020-09-20 13:30:00 -0600
 categories: VulnHub OSCP
-tags: VulnHub Kioptrix
+tags: VulnHub Kioptrix SQLi mysql
 ---
 
 Similar to the first 3 Kioptrix machines but this just provides a raw VHD, you can create a new image and import the disc after downloading it [here](https://www.vulnhub.com/entry/kioptrix-level-13-4%2C25/).
 
 ## Enumeration
 
-Running our standard autorecon script doesn't reveal much for open ports on this machine, we are looking SSH and a web-server. Generally SSH isn't going to be vulnerable so we can just skip over it for now. The GoBuster scan that runs by default with AutoRecon did find a couple of interesting things, namely gallery and phpmyadmin. We can see that gallery browsing to kioptrix3.com/gallery/ opens up an app called gallarific.
+Running AutoRecon on this target reveals SSH and HTTP server again along with ports for SMB. AutoRecon provides us with some automated scans for SMB and I didn't really see anything of interest there. Back to enumerating the website again, we can see that the default scans show a couple of subfolders that don't contain much information but the folder `john` might be of interest as a potential username. We can see that the root of the web-server presents us with a login screen. We've seen SQLi a couple of times already, so let's give it a shot.
 
-## SCREENSHOT
+![login.png](/assets/images/k4_login.png)
 
-Running SearchSploit against gallarific shows an sql injection is available, we can use this to attempt to grab users from our database. The default SQL Injection provided in the exploit didn't work for due to a mismatch in the number of columns. So I had to modify it to the following:
-`kioptrix3.com/gallery/gallery.php?id=null+and+1=2+union+select+1,group_concat(userid,0x3a,username,0x3a,password),3,4,5,6+from+gallarific_users`. This returns the first user in the database which is the admin.
+Trying to inject into the username field doesn't show any error messages and we get a standard Invalid Username or Password message. We can also try injecting into the password field. If we login with the following credentials we can see that there is in fact an SQL Injection in the password field.
 
-## SCREENSHOT
+    Username: john
+    Password: ' or 1=1 #
 
-The exploit from searchsploit also refers to an admin page that doesn't appear to exist on our install and the username and password combo we found doesn't work on phpmyadmin. Back to the database to see if we can find anything else. Long story short, I am going to write a script to automate some of this, but I just ended using SQLMap to dump the database by running `sqlamp --wizard` an following the prompts. This uncovered a dev_accounts table with a couple of user accounts in there. Since these are developer accounts I figure they might have permission to SSH onto the server, so let's give it a shot.
+This leads us to the members.php page that appeared in our scans earlier but didn't have any use for us. We can see this page exposes the plain text password for the user john.
 
-## SCREENSHOT
+![password](/assets/images/k4_password.png)
 
 ## Elevate
 
-Looks like we can SSH in using these credentials, taking a look at the loneferret account first and doing some basic enumeration we can see if this user can run anything as root. Easy money, the user can sudo the su command so we can just `sudo su -` here and get a root shell.
+Now that we have a username and password we can try to ssh into the machine like we did with the last box. Using the credentials that we got from the website we are able to successfully login to the server. We know that there is a database on the server so let's see if we can grab the credentials from the PHP login page and see who the mysql server is running as.
 
-(There are no screenshots here because I modified the sudoers file earlier and didn't feel like resetting the box :D )
+Now that we are logged into the server we can see that we are running in a restricted shell limited to a few commands. We need to figure out how we can upgrade this shell. We can run the echo command so we can try a simple `echo os.system('/bin/bash')`. We can see the full process in the screenshot below.
+
+![upgrade](/assets/images/k4_upgrade.png)
+
+Now that we have full access to a shell we can get the credentials for the mysql database by looking at the `checklogin.php` code. We can see there the connection to the database is the `root` user with no password.
+
+![database connection](/assets/images/k4_database_connection.png)
+
+We can also confirm that the mysql processes are running as root, this means we should be able to use mysql to execute commands to run as root. I was able to use the guide found [here](https://www.adampalmer.me/iodigitalsec/2013/08/13/mysql-root-to-system-root-with-udf-for-windows-and-linux/). Most of the exploit was already working, all we really needed to do was a simple `select sys_exec('chmod u+s /bin/bash');` from the mysql prompt to set the suid bit on the bash binary and run it with `bash -p` to get our root shell. Let this be a lesson in why you never run a service as root.
+
+![elevate](/assets/images/k4_whoami.png)
