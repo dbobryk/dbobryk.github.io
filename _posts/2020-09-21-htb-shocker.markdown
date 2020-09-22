@@ -6,6 +6,8 @@ categories: HTB OSCP
 tags: HTB Shocker Linux ShellShock
 ---
 
+Shocker is an easy level box on Hack The Box.
+
 ## Enumeration
 
 ![site](/assets/images/shocker/site.png)
