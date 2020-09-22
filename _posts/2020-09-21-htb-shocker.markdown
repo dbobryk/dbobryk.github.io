@@ -1,7 +1,7 @@
 ---
 layout: post
 title: "Shocker"
-date: 2020-09-20 13:30:00 -0600
+date: 2020-09-21 22:00:00 -0600
 categories: HTB OSCP
 tags: HTB Shocker Linux ShellShock
 ---
